@@ -132,9 +132,21 @@ public:
 		csSDK_int32* ioQueryIndex,
 		PrGPUFilterFrameDependency* outFrameRequirements)
 	{
-		outFrameRequirements->outDependencyType = PrGPUDependency_InputFrame;
-		outFrameRequirements->outTrackID = GetParam(0, inRenderParams->inClipTime).mInt32;
-		outFrameRequirements->outSequenceTime = inRenderParams->inSequenceTime + inRenderParams->inRenderTicksPerFrame;
+		PrTime clipStartTime = inRenderParams->inSequenceTime - inRenderParams->inClipTime;
+		
+
+		if (ioQueryIndex[0] == 0) {
+			outFrameRequirements->outDependencyType = PrGPUDependency_InputFrame;
+			outFrameRequirements->outTrackID = GetParam(1, inRenderParams->inClipTime).mInt32;
+			outFrameRequirements->outSequenceTime = clipStartTime + inRenderParams->inClipTime /2;
+			ioQueryIndex[0]++;
+		}
+		else {
+			outFrameRequirements->outDependencyType = PrGPUDependency_InputFrame;
+			outFrameRequirements->outTrackID = GetParam(1, inRenderParams->inClipTime).mInt32;
+			outFrameRequirements->outSequenceTime = clipStartTime + inRenderParams->inClipTime /2 + inRenderParams->inRenderTicksPerFrame;
+		}
+
 		return suiteError_NoError;
 	}
 
@@ -149,7 +161,7 @@ public:
 
 		// Initial steps are independent of CUDA and OpenCL
 
-		if (inFrameCount < 2 || (!inFrames[0]) || (!inFrames[1]))
+		if (inFrameCount < 3 || (!inFrames[1]) || (!inFrames[2]))
 		{
 			return suiteError_Fail;
 		}
@@ -157,7 +169,7 @@ public:
 		// read the parameters
 		int flip = GetParam(SDK_CROSSDISSOLVE_FLIP, inRenderParams->inClipTime).mBool;
 
-		PPixHand properties = inFrames[0];
+		PPixHand properties = inFrames[1];
 
 		csSDK_uint32 index = 0;
 		mGPUDeviceSuite->GetGPUPPixDeviceIndex(properties, &index);
@@ -199,17 +211,17 @@ public:
 		// Get incoming data
 		void* incomingFrameData = 0;
 		csSDK_int32 incomingRowBytes = 0;
-		if (inFrames[0])
+		if (inFrames[1])
 		{
-			mGPUDeviceSuite->GetGPUPPixData(inFrames[0], &incomingFrameData);
-			mPPixSuite->GetRowBytes(inFrames[0], &incomingRowBytes);
+			mGPUDeviceSuite->GetGPUPPixData(inFrames[1], &incomingFrameData);
+			mPPixSuite->GetRowBytes(inFrames[1], &incomingRowBytes);
 		}
 
 		// Get incoming data
 		void* nextFrameData = 0;
-		if (inFrames[1])
+		if (inFrames[2])
 		{
-			mGPUDeviceSuite->GetGPUPPixData(inFrames[1], &nextFrameData);
+			mGPUDeviceSuite->GetGPUPPixData(inFrames[2], &nextFrameData);
 		}
 
 		// Get dest data
@@ -228,7 +240,7 @@ public:
 		// Start CUDA or OpenCL specific code
 
 		if (mDeviceInfo.outDeviceFramework == PrGPUDeviceFramework_CUDA) {
-			int downscale = 4;
+			int downscale = 1;
 			int scaleFac = pow(2, downscale);
 				
 			float* incomingBuffer = (float* )incomingFrameData;	
