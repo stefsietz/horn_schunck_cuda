@@ -1,4 +1,4 @@
-#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\FrameDiff.cl"
+#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\HSAlphaStep.cl"
 
 
 
@@ -12,14 +12,14 @@
 
 
 
-#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HSAlphaStep.cu"
 
 
 	
 
     
 
-#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HSAlphaStep.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 
@@ -8793,7 +8793,7 @@ static __inline__ float saturate(float inX)
 #line 533 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 #line 535 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
-#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HSAlphaStep.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 
@@ -9184,28 +9184,37 @@ static __inline__ float saturate(float inX)
 #line 275 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 #line 277 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
-#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HSAlphaStep.cu"
 
 	
-		static __inline__ void kFrameDiff_Delegate( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    ); __kernel void kFrameDiff( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  ) {   kFrameDiff_Delegate( inImg, nextImg, destImg  , inPitch, destPitch, in16f, outWidth, outHeight  , KernelXYUnsigned()    ); } static __inline__ void kFrameDiff_Delegate( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    )
-#line 22 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+		static __inline__ void kHSAlphaStep_Delegate( __global float4* inImgUVAvg, __global float4* inImgX, __global float4* inImgY, __global float4* inImgT, __global float4* destImg  , int inPitch, int destPitch, int alpha, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    ); __kernel void kHSAlphaStep( __global float4* inImgUVAvg, __global float4* inImgX, __global float4* inImgY, __global float4* inImgT, __global float4* destImg  , int inPitch, int destPitch, int alpha, int in16f, unsigned int outWidth, unsigned int outHeight  ) {   kHSAlphaStep_Delegate( inImgUVAvg, inImgX, inImgY, inImgT, destImg  , inPitch, destPitch, alpha, in16f, outWidth, outHeight  , KernelXYUnsigned()    ); } static __inline__ void kHSAlphaStep_Delegate( __global float4* inImgUVAvg, __global float4* inImgX, __global float4* inImgY, __global float4* inImgT, __global float4* destImg  , int inPitch, int destPitch, int alpha, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    )
+#line 25 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HSAlphaStep.cu"
 		{
-			float4  color, nextColor, dest;
-
+			float4  uvAvg, dest;
+			float dX, dY, dT;
 
 			if (inXY.x >= outWidth || inXY.y >= outHeight) return;
 
-			color = ReadFloat4(inImg, inXY.y * inPitch + inXY.x, !!in16f);
-			nextColor = ReadFloat4(nextImg, inXY.y * inPitch + inXY.x, !!in16f);
+			dX = ReadFloat4(inImgX, inXY.y * inPitch + inXY.x, !!in16f).x;
+			dY = ReadFloat4(inImgY, inXY.y * inPitch + inXY.x, !!in16f).x;
+			dT = ReadFloat4(inImgT, inXY.y * inPitch + inXY.x, !!in16f).x;
+			uvAvg = ReadFloat4(inImgUVAvg, inXY.y * inPitch + inXY.x, !!in16f);
 
-			dest.x = (nextColor.x - color.x);
-			dest.y = (nextColor.y - color.y);
-			dest.z = (nextColor.z - color.z);
-			dest.w = color.w;
+			dest.x = uvAvg.x - (dX*((dX * uvAvg.x) + (dY * uvAvg.y) + dT)) / (alpha* alpha + dX * dX + dY * dY);
+			dest.y = uvAvg.y - (dY*((dX * uvAvg.x) + (dY * uvAvg.y) + dT)) / (alpha*alpha + dX*dX + dY*dY);
+			dest.z = 0;
+			dest.w = 1.0;
+
+			dest.x = dest.x > 10000 ? 0 : dest.x;
+			dest.y = dest.y > 10000 ? 0 : dest.y;
+			dest.x = dest.x < -10000 ? 0 : dest.x;
+			dest.y = dest.y < -10000 ? 0 : dest.y;
 
 			WriteFloat4(dest, destImg, inXY.y * destPitch + inXY.x, !!in16f);
 		}
-	#line 39 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+	#line 49 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HSAlphaStep.cu"
+
+	
 
 
 
@@ -9225,7 +9234,8 @@ static __inline__ float saturate(float inX)
 
 
 
-#line 59 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
 
-#line 61 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
-#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\FrameDiff.cl"
+#line 72 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HSAlphaStep.cu"
+
+#line 74 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HSAlphaStep.cu"
+#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\HSAlphaStep.cl"

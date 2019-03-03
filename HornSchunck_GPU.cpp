@@ -12,7 +12,7 @@
 */
 
 /*
-	SDK_CrossDissolve_GPU.cpp
+	HornSchunck_GPU.cpp
 	
 	Revision History
 		
@@ -30,7 +30,7 @@
 #include "Convolve3x3.cl.h"
 #include "Rgb2Gray.cl.h"
 #include "FrameDiff.cl.h"
-#include "SDK_CrossDissolve.h"
+#include "HornSchunck.h"
 #include "PrGPUFilterModule.h"
 #include "PrSDKVideoSegmentProperties.h"
 
@@ -43,18 +43,22 @@
 #include <math.h>
 
 //  CUDA KERNEL 
-//  * See SDK_CrossDissolve.cu
+//  * See HornSchunck.cu
 extern void ResampleBilinear_CUDA ( cudaTextureObject_t texObj, float *destBuf, unsigned int destPitch, unsigned int is16bit, unsigned int width, unsigned int height);
 extern void Convolve3x3_CUDA(cudaTextureObject_t texObj, float *destBuf, float *kernelBuf, int kernelRadius, int destPitch, int is16bit, unsigned int width, unsigned int height);
 extern void Rgb2Gray_CUDA(float *inBuf, float *destBuf, int inPitch, int destPitch, int is16bit, unsigned int width, unsigned int height);
 extern void FrameDiff_CUDA(float *inBuf, float *nextBuf, float *destBuf, int inPitch, int destPitch, int is16bit, unsigned int width, unsigned int height);
+extern void ClearMem_CUDA(float *destBuf, float r, float g, float b, float a, int destPitch, int is16bit, unsigned int width, unsigned int height);
+extern void HSAlphaStep_CUDA(float *inBufUVAvg, float *inBufX, float *inBufY, float *inBufT, float *destBuf, int inPitch, int destPitch, int alpha, int is16bit, unsigned int width, unsigned int height);
+extern void Add_CUDA(float *inBuf1, float *inBuf2, float *destBuf, int inPitch, int destPitch, float input2Mult, int is16bit, unsigned int width, unsigned int height);
+extern void Warp_CUDA(cudaTextureObject_t inImage, cudaTextureObject_t warpImage, float *destBuf, unsigned int destPitch, float scaleFac, unsigned int is16bit, unsigned int flip, unsigned int width, unsigned int height);
 
 static cl_kernel sKernelCache[4];
 
 /*
 **
 */
-class SDK_CrossDissolve :
+class HornSchunck :
 	public PrGPUFilterBase
 {
 public:
@@ -134,17 +138,18 @@ public:
 	{
 		PrTime clipStartTime = inRenderParams->inSequenceTime - inRenderParams->inClipTime;
 		
+		int slomo = 2;
 
 		if (ioQueryIndex[0] == 0) {
 			outFrameRequirements->outDependencyType = PrGPUDependency_InputFrame;
 			outFrameRequirements->outTrackID = GetParam(1, inRenderParams->inClipTime).mInt32;
-			outFrameRequirements->outSequenceTime = clipStartTime + inRenderParams->inClipTime /2;
+			outFrameRequirements->outSequenceTime = clipStartTime + inRenderParams->inClipTime / slomo;
 			ioQueryIndex[0]++;
 		}
 		else {
 			outFrameRequirements->outDependencyType = PrGPUDependency_InputFrame;
 			outFrameRequirements->outTrackID = GetParam(1, inRenderParams->inClipTime).mInt32;
-			outFrameRequirements->outSequenceTime = clipStartTime + inRenderParams->inClipTime /2 + inRenderParams->inRenderTicksPerFrame;
+			outFrameRequirements->outSequenceTime = clipStartTime + inRenderParams->inClipTime / slomo + inRenderParams->inRenderTicksPerFrame;
 		}
 
 		return suiteError_NoError;
@@ -167,7 +172,13 @@ public:
 		}
 
 		// read the parameters
-		int flip = GetParam(SDK_CROSSDISSOLVE_FLIP, inRenderParams->inClipTime).mBool;
+		int flip = GetParam(HornSchunck_FLIP, inRenderParams->inClipTime).mBool;
+		int iterations = (int)GetParam(HornSchunck_ITERATIONS, inRenderParams->inClipTime).mFloat64;
+
+		PrTime clipStartTime = inRenderParams->inSequenceTime - inRenderParams->inClipTime;
+		int frames = (inRenderParams->inClipTime / inRenderParams->inRenderTicksPerFrame);
+		bool odd = frames % 2 == 1;
+		float warp = odd ? 0.75 : 0.0;
 
 		PPixHand properties = inFrames[1];
 
@@ -240,41 +251,102 @@ public:
 		// Start CUDA or OpenCL specific code
 
 		if (mDeviceInfo.outDeviceFramework == PrGPUDeviceFramework_CUDA) {
-			int downscale = 1;
-			int scaleFac = pow(2, downscale);
 				
 			float* incomingBuffer = (float* )incomingFrameData;	
 			float* nextFrameBuffer = (float*)nextFrameData;
 
-			float* intermediateBuffer1;
-			mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&intermediateBuffer1);
+			int downscale = 5;
+			
 
-			float* intermediateBuffer2;
-			mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&intermediateBuffer2);
+			float* im1ToGrayBuf;
+			mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&im1ToGrayBuf);
 
-			float* intermediateBuffer3;
-			mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&intermediateBuffer3);
+			float* warpedBuf;
+			mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&warpedBuf);
 
-			float* intermediateBuffer4;
-			mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&intermediateBuffer4);
+			float* im2ToGrayBuf;
+			mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&im2ToGrayBuf);
+
+			float* flowSumBuf;
+			mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&flowSumBuf);
+			ClearMem_CUDA(flowSumBuf, 0, 0, 0, 1, width, is16f, width, height);
+
+			float* origsizeFlowBuf;
+			mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&origsizeFlowBuf);
+
+			Rgb2Gray(incomingBuffer, warpedBuf, incomingPitch, destPitch, width, height, is16f);
+			Rgb2Gray(nextFrameBuffer, im2ToGrayBuf, incomingPitch, destPitch, width, height, is16f);
+
+			Add_CUDA(warpedBuf, im2ToGrayBuf, im1ToGrayBuf, width, width, 0, is16f, width, height);
+
+			int lastScaleFac =  pow(2, downscale);
+			for (int i = downscale; i >= 0; i--) {
+
+				int scaleFac = pow(2, i);
+
+				float* im1ResizedBuf;
+				mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&im1ResizedBuf);
+
+				float* im1BlurredBuf1;
+				mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&im1BlurredBuf1);
+
+				float* im1BlurredBuf2;
+				mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&im1BlurredBuf2);
+
+				float* im2ResizedBuf;
+				mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&im2ResizedBuf);
+
+				float* im2BlurredBuf1;
+				mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&im2BlurredBuf1);
+
+				float* im2BlurredBuf2;
+				mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&im2BlurredBuf2);
+
+				float* downscaledFlowBuf;
+				mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height / scaleFac / scaleFac), (void**)&downscaledFlowBuf);
+
+
+				Downsample(warpedBuf, im1ResizedBuf, destPitch, width, height, width, height, i, is16f);
+				Downsample(im2ToGrayBuf, im2ResizedBuf, destPitch, width, height, width, height, i, is16f);
+
+				Gaussian3x3(im1ResizedBuf, im1BlurredBuf1, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
+				Gaussian3x3(im2ResizedBuf, im2BlurredBuf1, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
+		/*		Gaussian3x3(im1BlurredBuf1, im1BlurredBuf2, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
+				Gaussian3x3(im2BlurredBuf1, im2BlurredBuf2, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
+				Gaussian3x3(im1BlurredBuf2, im1BlurredBuf1, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
+				Gaussian3x3(im2BlurredBuf2, im2BlurredBuf1, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);*/
+
+				DoHornSchunck(im1BlurredBuf1, im2BlurredBuf1, downscaledFlowBuf, 32, iterations, width / scaleFac, height / scaleFac, is16f);
+
+				Downsample(downscaledFlowBuf, origsizeFlowBuf, destPitch, width / scaleFac, height / scaleFac, width, height, 0, is16f);
+				Add_CUDA(flowSumBuf, origsizeFlowBuf, flowSumBuf, width, width, scaleFac, is16f, width, height);
+
+				Warp(im1ToGrayBuf, flowSumBuf, warpedBuf, width, 1, width, height, width, height, is16f, true);
+
+				cudaFree(im1ResizedBuf); 
+				cudaFree(im1BlurredBuf1);
+				cudaFree(im1BlurredBuf2);
+				cudaFree(im2ResizedBuf);
+				cudaFree(im2BlurredBuf1);
+				cudaFree(im2BlurredBuf2);
+				cudaFree(downscaledFlowBuf);
+
+				lastScaleFac = scaleFac;
+			}
 
 			float* destBuffer = (float*)destFrameData;
+			ClearMem_CUDA(im1ToGrayBuf, 0, 0, 0, 1, width, is16f, width, height);
+			//if(flip)
+			//	Add_CUDA(im1ToGrayBuf, origsizeFlowBuf, destBuffer, width, width, -.5, is16f, width, height);
+			//else
+			//	Add_CUDA(im1ToGrayBuf, flowSumBuf, destBuffer, width, width, -.5, is16f, width, height);
+			Warp(incomingBuffer, flowSumBuf, destBuffer, width, warp, width, height, width, height, is16f, true);
 
-			Downsample(incomingBuffer, intermediateBuffer1, destPitch, width, height, width, height, downscale, is16f);
-			Downsample(nextFrameBuffer, intermediateBuffer3, destPitch, width, height, width, height, downscale, is16f);
-			Rgb2Gray(intermediateBuffer1, intermediateBuffer2, incomingPitch / scaleFac, destPitch/ scaleFac, width / scaleFac, height / scaleFac, is16f);
-			Rgb2Gray(intermediateBuffer3, intermediateBuffer4, incomingPitch / scaleFac, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
-			Gaussian3x3(intermediateBuffer2, intermediateBuffer1, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
-			Gaussian3x3(intermediateBuffer4, intermediateBuffer3, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
-
-			//DiffY(intermediateBuffer2, intermediateBuffer1, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
-			FrameDiff(intermediateBuffer1, intermediateBuffer3, intermediateBuffer2, incomingPitch / scaleFac, destPitch / scaleFac, width / scaleFac, height / scaleFac, is16f);
-			Downsample(intermediateBuffer2, destBuffer, destPitch, width / scaleFac, height / scaleFac, width, height, 0, is16f);
-
-			cudaFree(intermediateBuffer1);
-			cudaFree(intermediateBuffer2);
-			cudaFree(intermediateBuffer3);
-			cudaFree(intermediateBuffer4);
+			cudaFree(im1ToGrayBuf);
+			cudaFree(im2ToGrayBuf);
+			cudaFree(warpedBuf);
+			cudaFree(flowSumBuf);
+			cudaFree(origsizeFlowBuf);
 
 	
 			if ( cudaPeekAtLastError() != cudaSuccess) 			
@@ -317,29 +389,96 @@ public:
 		return suiteError_NoError;
 	}
 
+	void DoHornSchunck(float* inData1, float* inData2, float* destFrameData, int alpha, int iterations, int width, int height, int is16f) {
+
+		float* diffXBuffer1;
+		mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&diffXBuffer1);
+
+		float* diffYBuffer1;
+		mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&diffYBuffer1);
+
+		float* diffXBuffer2;
+		mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&diffXBuffer2);
+
+		float* diffYBuffer2;
+		mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&diffYBuffer2);
+
+		float* diffTBuffer;
+		mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&diffTBuffer);
+
+		float* uvBuff1;
+		mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&uvBuff1);
+
+		float* uvBuff2;
+		mGPUDeviceSuite->AllocateDeviceMemory(0, (int)(sizeof(float) * 4 * width * height), (void**)&uvBuff2);
+
+		DiffX(inData1, diffXBuffer1, width, width, height, is16f);
+		DiffY(inData1, diffYBuffer1, width, width, height, is16f);
+		DiffX(inData2, diffXBuffer2, width, width, height, is16f);
+		DiffY(inData2, diffYBuffer2, width, width, height, is16f);
+		Add_CUDA(diffXBuffer1, diffXBuffer2, diffXBuffer1, width, width, 1, is16f, width, height);
+		Add_CUDA(diffYBuffer1, diffYBuffer2, diffYBuffer1, width, width, 1, is16f, width, height);
+		FrameDiff(inData1, inData2, diffTBuffer, width, width, width, height, is16f);
+
+		float kernel[9] = {
+			1.0 / 12, 1.0 / 6, 1.0 / 12,
+			1.0 / 6, 0, 1.0 / 6,
+			1.0 / 12, 1.0 / 6, 1.0 / 12
+		};
+
+		ClearMem_CUDA(uvBuff1, 0, 0, 0, 1, width, is16f, width, height);
+		for (int i = 0; i < iterations; i++) {
+
+			Conv3x3(uvBuff1, uvBuff2, kernel, width, width, height, is16f);
+			HSAlphaStep_CUDA(uvBuff2, diffXBuffer1, diffYBuffer1, diffTBuffer, uvBuff1, width, width, alpha, is16f, width, height);
+		}
+
+		cudaMemcpy(destFrameData, uvBuff1, sizeof(float) * 4 * width*height, cudaMemcpyDeviceToDevice);
+
+		cudaFree(diffXBuffer1);
+		cudaFree(diffYBuffer1);
+		cudaFree(diffXBuffer2);
+		cudaFree(diffYBuffer2);
+		cudaFree(diffTBuffer);
+		cudaFree(uvBuff1);
+		cudaFree(uvBuff2);
+	}
+
 	void DiffY(float* incomingFrameData, float* destFrameData, int destPitch, int width, int height, int is16f) {
 
 		float kernel[9] = {
-			-1.0 / 4, -1.0 / 2, -1.0 / 4,
+			-1.0 / 2, -1.0, -1.0 / 2,
 			0, 0, 0,
-			1.0 / 4, 1.0 / 2, 1.0 / 4
+			1.0 / 2, 1.0, 1.0 / 2
 		};
 
-		Diff(incomingFrameData, destFrameData, kernel, destPitch, width, height, is16f);
+		//float kernel[9] = {
+		//	0, -1.0 , 0,
+		//	0, 0, 0,
+		//	0, 1.0, 0
+		//};
+
+		Conv3x3(incomingFrameData, destFrameData, kernel, destPitch, width, height, is16f);
 	}
 
 	void DiffX(float* incomingFrameData, float* destFrameData, int destPitch, int width, int height, int is16f) {
 
 		float kernel[9] = {
-			-1.0 / 4, 0, 1.0 / 4,
 			-1.0 / 2, 0, 1.0 / 2,
-			-1.0 / 4, 0, 1.0 / 4
+			-1.0 / 1, 0, 1.0 / 1,
+			-1.0 / 2, 0, 1.0 / 2
 		};
 
-		Diff(incomingFrameData, destFrameData, kernel, destPitch, width, height, is16f);
+		//float kernel[9] = {
+		//	0,0,0,
+		//	-1.0, 0, 1.0 ,
+		//	0,0,0
+		//};
+
+		Conv3x3(incomingFrameData, destFrameData, kernel, destPitch, width, height, is16f);
 	}
 
-	void Diff(float* incomingFrameData, float* destFrameData, float* kernel, int destPitch, int width, int height, int is16f) {
+	void Conv3x3(float* incomingFrameData, float* destFrameData, float* kernel, int destPitch, int width, int height, int is16f) {
 
 		cudaChannelFormatDesc channelDesc =
 			cudaCreateChannelDesc<float4>();
@@ -476,6 +615,71 @@ public:
 			height);
 	}
 
+	void Warp(float* incomingFrameData, float* warpImageFrameData, float* destFrameData, int destPitch, float scaleFac, int width, int height, int warpWidth, int warpHeight, int is16f, int flip) {
+
+		cudaChannelFormatDesc channelDesc =
+			cudaCreateChannelDesc<float4>();
+
+		cudaArray* cuArrayInImg;
+		cudaMallocArray(&cuArrayInImg, &channelDesc, width, height);
+
+		cudaMemcpyToArray(cuArrayInImg, 0, 0, incomingFrameData, width*height * 16,
+			cudaMemcpyDeviceToDevice);
+
+		cudaArray* cuArrayWarp;
+		cudaMallocArray(&cuArrayWarp, &channelDesc, warpWidth, warpHeight);
+
+		cudaMemcpyToArray(cuArrayWarp, 0, 0, warpImageFrameData, warpWidth*warpHeight * 16,
+			cudaMemcpyDeviceToDevice);
+
+		// Specify texture
+		struct cudaResourceDesc resDescImg;
+		memset(&resDescImg, 0, sizeof(resDescImg));
+		resDescImg.resType = cudaResourceTypeArray;
+		resDescImg.res.array.array = cuArrayInImg;
+
+		struct cudaResourceDesc resDescWarp;
+		memset(&resDescWarp, 0, sizeof(resDescWarp));
+		resDescWarp.resType = cudaResourceTypeArray;
+		resDescWarp.res.array.array = cuArrayWarp;
+
+		// Specify texture object parameters
+		struct cudaTextureDesc texDesc;
+		memset(&texDesc, 0, sizeof(texDesc));
+		texDesc.addressMode[0] = cudaAddressModeMirror;
+		texDesc.addressMode[1] = cudaAddressModeMirror;
+		texDesc.filterMode = cudaFilterModeLinear;
+		texDesc.readMode = cudaReadModeElementType;
+		texDesc.normalizedCoords = 1;
+
+		// Create texture object
+		cudaTextureObject_t texObjImg = 0;
+		cudaCreateTextureObject(&texObjImg, &resDescImg, &texDesc, NULL);
+
+		cudaTextureObject_t texObjWarp = 1;
+		cudaCreateTextureObject(&texObjWarp, &resDescWarp, &texDesc, NULL);
+
+		float* destBuffer = (float*)destFrameData;
+		// Launch CUDA kernel
+		Warp_CUDA(
+			texObjImg,
+			texObjWarp,
+			destBuffer,
+			destPitch,
+			scaleFac,
+			is16f,
+			flip,
+			width,
+			height);
+
+		cudaDestroyTextureObject(texObjImg);
+		cudaDestroyTextureObject(texObjWarp);
+
+		// Free device memory
+		cudaFreeArray(cuArrayInImg);
+		cudaFreeArray(cuArrayWarp);
+	}
+
 	void Downsample(float* incomingFrameData, float* destFrameData, int destPitch, int inWidth, int inHeight, int outWidth, int outHeight, int levels, int is16f) {
 
 		cudaChannelFormatDesc channelDesc =
@@ -558,4 +762,4 @@ private:
 };
 
 
-DECLARE_GPUFILTER_ENTRY(PrGPUFilterModule<SDK_CrossDissolve>)
+DECLARE_GPUFILTER_ENTRY(PrGPUFilterModule<HornSchunck>)

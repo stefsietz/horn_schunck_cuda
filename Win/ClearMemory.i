@@ -1,4 +1,4 @@
-#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\SDK_CrossDissolve.cl"
+#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\ClearMemory.cl"
 
 
 
@@ -12,14 +12,14 @@
 
 
 
-#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\SDK_CrossDissolve.cu"
+#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\ClearMemory.cu"
 
 
 	
 
     
 
-#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\SDK_CrossDissolve.cu"
+#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\ClearMemory.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 
@@ -8793,7 +8793,7 @@ static __inline__ float saturate(float inX)
 #line 533 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 #line 535 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
-#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\SDK_CrossDissolve.cu"
+#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\ClearMemory.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 
@@ -9184,32 +9184,25 @@ static __inline__ float saturate(float inX)
 #line 275 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 #line 277 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
-#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\SDK_CrossDissolve.cu"
+#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\ClearMemory.cu"
 
 	
-		static __inline__ void kCrossDissolveCUDA_Delegate( __global float4 const* outImg, __global float4 const* inImg, __global float4* destImg  , unsigned int outPitch, unsigned int inPitch, unsigned int destPitch, int in16f, unsigned int inWidth, unsigned int inHeight, float inProgress, int inFlip  , uint2 inXY    ); __kernel void kCrossDissolveCUDA( __global float4 const* outImg, __global float4 const* inImg, __global float4* destImg  , unsigned int outPitch, unsigned int inPitch, unsigned int destPitch, int in16f, unsigned int inWidth, unsigned int inHeight, float inProgress, int inFlip  ) {   kCrossDissolveCUDA_Delegate( outImg, inImg, destImg  , outPitch, inPitch, destPitch, in16f, inWidth, inHeight, inProgress, inFlip  , KernelXYUnsigned()    ); } static __inline__ void kCrossDissolveCUDA_Delegate( __global float4 const* outImg, __global float4 const* inImg, __global float4* destImg  , unsigned int outPitch, unsigned int inPitch, unsigned int destPitch, int in16f, unsigned int inWidth, unsigned int inHeight, float inProgress, int inFlip  , uint2 inXY    )
-#line 25 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\SDK_CrossDissolve.cu"
+		static __inline__ void kClearMem_Delegate( __global float4* destImg  , float R, float G, float B, float A, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    ); __kernel void kClearMem( __global float4* destImg  , float R, float G, float B, float A, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  ) {   kClearMem_Delegate( destImg  , R, G, B, A, destPitch, in16f, outWidth, outHeight  , KernelXYUnsigned()    ); } static __inline__ void kClearMem_Delegate( __global float4* destImg  , float R, float G, float B, float A, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    )
+#line 23 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\ClearMemory.cu"
 		{
-			float4 outgoing, incoming, dest;
+			float4  dest;
 
-			if ( inXY.x >= inWidth || inXY.y >= inHeight ) return;
 
-			outgoing = ReadFloat4(outImg, inXY.y * outPitch + inXY.x, !!in16f);
-			incoming = ReadFloat4(inImg, inXY.y * inPitch + inXY.x, !!in16f);
-		
-			float outgoingAlphaWeighted = outgoing.w * (1.0f - inProgress);
-			float incomingAlphaWeighted  = incoming.w * inProgress; 
-			float newAlpha = outgoingAlphaWeighted  + incomingAlphaWeighted ; 
-			float recipNewAlpha = newAlpha != 0.0f ? 1.0f / newAlpha : 0.0f;
+			if (inXY.x >= outWidth || inXY.y >= outHeight) return;
 
-			dest.x = (outgoing.x * outgoingAlphaWeighted + incoming.x * incomingAlphaWeighted) * recipNewAlpha; 
-			dest.y = (outgoing.y * outgoingAlphaWeighted + incoming.y * incomingAlphaWeighted) * recipNewAlpha; 
-			dest.z = (outgoing.z * outgoingAlphaWeighted + incoming.z * incomingAlphaWeighted) * recipNewAlpha; 
-			dest.w = newAlpha;
+			dest.x = B;
+			dest.y = G;
+			dest.z = R;
+			dest.w = A;
 
-			WriteFloat4(dest, destImg, inXY.y * outPitch + inXY.x, !!in16f);	
+			WriteFloat4(dest, destImg, inXY.y * destPitch + inXY.x, !!in16f);
 		}
-	#line 46 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\SDK_CrossDissolve.cu"
+	#line 37 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\ClearMemory.cu"
 
 	
 
@@ -9230,9 +9223,7 @@ static __inline__ float saturate(float inX)
 
 
 
+#line 58 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\ClearMemory.cu"
 
-
-#line 69 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\SDK_CrossDissolve.cu"
-
-#line 71 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\SDK_CrossDissolve.cu"
-#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\SDK_CrossDissolve.cl"
+#line 60 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\ClearMemory.cu"
+#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\ClearMemory.cl"

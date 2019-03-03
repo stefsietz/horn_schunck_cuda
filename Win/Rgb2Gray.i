@@ -9192,19 +9192,22 @@ static __inline__ float saturate(float inX)
 		{
 			float4  color, dest;
 
+			float scale = 255;
+
 
 			if (inXY.x >= outWidth || inXY.y >= outHeight) return;
 
 			color = ReadFloat4(inImg, inXY.y * inPitch + inXY.x, !!in16f);
 
 			dest.x = 0.2126 * color.z + 0.7152 * color.y + 0.0722 * color.x;
+			dest.x *= 255;
 			dest.y = dest.x;
 			dest.z = dest.x;
 			dest.w = color.w;
 
 			WriteFloat4(dest, destImg, inXY.y * destPitch + inXY.x, !!in16f);
 		}
-	#line 37 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Rgb2Gray.cu"
+	#line 40 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Rgb2Gray.cu"
 
 	
 
@@ -9223,7 +9226,7 @@ static __inline__ float saturate(float inX)
 
 
 
-#line 56 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Rgb2Gray.cu"
+#line 59 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Rgb2Gray.cu"
 
-#line 58 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Rgb2Gray.cu"
+#line 61 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Rgb2Gray.cu"
 #line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\Rgb2Gray.cl"

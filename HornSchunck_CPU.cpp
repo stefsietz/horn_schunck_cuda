@@ -20,7 +20,7 @@
 /*******************************************************************/
 
 
-#include "SDK_CrossDissolve.h"
+#include "HornSchunck.h"
 
 
 
@@ -79,10 +79,22 @@ static PF_Err ParamsSetup(
 		"",
 		0,
 		0,
-		SDK_CROSSDISSOLVE_FLIP);
+		HornSchunck_FLIP);
 
+	AEFX_CLR_STRUCT(def);
+	PF_ADD_FLOAT_SLIDERX(
+		"Iterations",
+		1,
+		200,
+		1, 80,
+		50,
+		1,
+		true,
+		0,
+		HornSchunck_ITERATIONS
+	);
 
-	out_data->num_params = SDK_CROSSDISSOLVE_NUM_PARAMS;
+	out_data->num_params = HornSchunck_NUM_PARAMS;
 	return PF_Err_NONE;
 }
 
@@ -107,7 +119,7 @@ static PF_Err Render(
 	const char* incomingData = (const char*)incoming->data;
 	char* destData = (char*)dest->data;
 
-	if (params[SDK_CROSSDISSOLVE_FLIP]->u.bd.value)
+	if (params[HornSchunck_FLIP]->u.bd.value)
 	{
 		destData += (output->height - 1) * dest->rowbytes;
 		dest->rowbytes = -dest->rowbytes;

@@ -43,6 +43,12 @@
     <CustomBuild Include="..\Convolve3x3.cu" />
     <CustomBuild Include="..\Rgb2Gray.cl" />
     <CustomBuild Include="..\Rgb2Gray.cu" />
+    <CustomBuild Include="..\FrameDiff.cl" />
+    <CustomBuild Include="..\FrameDiff.cu" />
+    <CustomBuild Include="..\ClearMemory.cl" />
+    <CustomBuild Include="..\ClearMemory.cu" />
+    <CustomBuild Include="..\HSAlphaStep.cl" />
+    <CustomBuild Include="..\HSAlphaStep.cu" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\SDK_CrossDissolve.rc">
@@ -50,7 +56,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\FrameDiff.cl" />
-    <None Include="..\FrameDiff.cu" />
+    <None Include="..\Add.cl" />
+    <None Include="..\Add.cu" />
+    <None Include="..\Warp.cl" />
+    <None Include="..\Warp.cu" />
   </ItemGroup>
 </Project>

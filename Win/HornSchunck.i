@@ -1,4 +1,4 @@
-#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\FrameDiff.cl"
+#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\HornSchunck.cl"
 
 
 
@@ -12,14 +12,14 @@
 
 
 
-#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HornSchunck.cu"
 
 
 	
 
     
 
-#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HornSchunck.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 
@@ -8793,7 +8793,7 @@ static __inline__ float saturate(float inX)
 #line 533 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 #line 535 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
-#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HornSchunck.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 
@@ -9184,28 +9184,34 @@ static __inline__ float saturate(float inX)
 #line 275 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 #line 277 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
-#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HornSchunck.cu"
 
 	
-		static __inline__ void kFrameDiff_Delegate( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    ); __kernel void kFrameDiff( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  ) {   kFrameDiff_Delegate( inImg, nextImg, destImg  , inPitch, destPitch, in16f, outWidth, outHeight  , KernelXYUnsigned()    ); } static __inline__ void kFrameDiff_Delegate( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    )
-#line 22 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+		static __inline__ void kCrossDissolveCUDA_Delegate( __global float4 const* outImg, __global float4 const* inImg, __global float4* destImg  , unsigned int outPitch, unsigned int inPitch, unsigned int destPitch, int in16f, unsigned int inWidth, unsigned int inHeight, float inProgress, int inFlip  , uint2 inXY    ); __kernel void kCrossDissolveCUDA( __global float4 const* outImg, __global float4 const* inImg, __global float4* destImg  , unsigned int outPitch, unsigned int inPitch, unsigned int destPitch, int in16f, unsigned int inWidth, unsigned int inHeight, float inProgress, int inFlip  ) {   kCrossDissolveCUDA_Delegate( outImg, inImg, destImg  , outPitch, inPitch, destPitch, in16f, inWidth, inHeight, inProgress, inFlip  , KernelXYUnsigned()    ); } static __inline__ void kCrossDissolveCUDA_Delegate( __global float4 const* outImg, __global float4 const* inImg, __global float4* destImg  , unsigned int outPitch, unsigned int inPitch, unsigned int destPitch, int in16f, unsigned int inWidth, unsigned int inHeight, float inProgress, int inFlip  , uint2 inXY    )
+#line 25 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HornSchunck.cu"
 		{
-			float4  color, nextColor, dest;
+			float4 outgoing, incoming, dest;
 
+			if ( inXY.x >= inWidth || inXY.y >= inHeight ) return;
 
-			if (inXY.x >= outWidth || inXY.y >= outHeight) return;
+			outgoing = ReadFloat4(outImg, inXY.y * outPitch + inXY.x, !!in16f);
+			incoming = ReadFloat4(inImg, inXY.y * inPitch + inXY.x, !!in16f);
+		
+			float outgoingAlphaWeighted = outgoing.w * (1.0f - inProgress);
+			float incomingAlphaWeighted  = incoming.w * inProgress; 
+			float newAlpha = outgoingAlphaWeighted  + incomingAlphaWeighted ; 
+			float recipNewAlpha = newAlpha != 0.0f ? 1.0f / newAlpha : 0.0f;
 
-			color = ReadFloat4(inImg, inXY.y * inPitch + inXY.x, !!in16f);
-			nextColor = ReadFloat4(nextImg, inXY.y * inPitch + inXY.x, !!in16f);
+			dest.x = (outgoing.x * outgoingAlphaWeighted + incoming.x * incomingAlphaWeighted) * recipNewAlpha; 
+			dest.y = (outgoing.y * outgoingAlphaWeighted + incoming.y * incomingAlphaWeighted) * recipNewAlpha; 
+			dest.z = (outgoing.z * outgoingAlphaWeighted + incoming.z * incomingAlphaWeighted) * recipNewAlpha; 
+			dest.w = newAlpha;
 
-			dest.x = (nextColor.x - color.x);
-			dest.y = (nextColor.y - color.y);
-			dest.z = (nextColor.z - color.z);
-			dest.w = color.w;
-
-			WriteFloat4(dest, destImg, inXY.y * destPitch + inXY.x, !!in16f);
+			WriteFloat4(dest, destImg, inXY.y * outPitch + inXY.x, !!in16f);	
 		}
-	#line 39 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+	#line 46 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HornSchunck.cu"
+
+	
 
 
 
@@ -9225,7 +9231,8 @@ static __inline__ float saturate(float inX)
 
 
 
-#line 59 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
 
-#line 61 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
-#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\FrameDiff.cl"
+#line 69 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HornSchunck.cu"
+
+#line 71 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\HornSchunck.cu"
+#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\HornSchunck.cl"

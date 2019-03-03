@@ -1,4 +1,4 @@
-#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\FrameDiff.cl"
+#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\Warp.cl"
 
 
 
@@ -12,14 +12,14 @@
 
 
 
-#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Warp.cu"
 
 
 	
 
     
 
-#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Warp.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 
@@ -8793,7 +8793,7 @@ static __inline__ float saturate(float inX)
 #line 533 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 #line 535 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
-#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Warp.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 
@@ -9184,28 +9184,56 @@ static __inline__ float saturate(float inX)
 #line 275 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 #line 277 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
-#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Warp.cu"
 
 	
-		static __inline__ void kFrameDiff_Delegate( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    ); __kernel void kFrameDiff( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  ) {   kFrameDiff_Delegate( inImg, nextImg, destImg  , inPitch, destPitch, in16f, outWidth, outHeight  , KernelXYUnsigned()    ); } static __inline__ void kFrameDiff_Delegate( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    )
-#line 22 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+		constant sampler_t kSampler_inSrcTexture = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_LINEAR;
+		constant sampler_t kSampler_inWarpTexture = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_LINEAR;
+
+		static __inline__ void kWarp_Delegate( __read_only image2d_t inSrcTexture, __read_only image2d_t inWarpTexture, __global float4* destImg  , unsigned int destPitch, float scaleFac, unsigned int in16f, unsigned int flip, unsigned int outWidth, unsigned int outHeight  , uint2 outXY    ); __kernel void kWarp( __read_only image2d_t inSrcTexture, __read_only image2d_t inWarpTexture, __global float4* destImg  , unsigned int destPitch, float scaleFac, unsigned int in16f, unsigned int flip, unsigned int outWidth, unsigned int outHeight  ) {   kWarp_Delegate( inSrcTexture, inWarpTexture, destImg  , destPitch, scaleFac, in16f, flip, outWidth, outHeight  , KernelXYUnsigned()    ); } static __inline__ void kWarp_Delegate( __read_only image2d_t inSrcTexture, __read_only image2d_t inWarpTexture, __global float4* destImg  , unsigned int destPitch, float scaleFac, unsigned int in16f, unsigned int flip, unsigned int outWidth, unsigned int outHeight  , uint2 outXY    )
+#line 26 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Warp.cu"
 		{
-			float4  color, nextColor, dest;
+			float4  color, warpColor, dest;
 
 
-			if (inXY.x >= outWidth || inXY.y >= outHeight) return;
+			if (outXY.x >= outWidth || outXY.y >= outHeight) return;
 
-			color = ReadFloat4(inImg, inXY.y * inPitch + inXY.x, !!in16f);
-			nextColor = ReadFloat4(nextImg, inXY.y * inPitch + inXY.x, !!in16f);
+			warpColor = read_imagef(inWarpTexture, kSampler_GF_TEXTURE_NAME(inWarpTexture), (float2)(((outXY.x + 0.5) / outWidth), ((outXY.y + 0.5) / outHeight)));
+			warpColor.x *= scaleFac;
+			warpColor.y *= scaleFac;
+			warpColor.z *= scaleFac;
 
-			dest.x = (nextColor.x - color.x);
-			dest.y = (nextColor.y - color.y);
-			dest.z = (nextColor.z - color.z);
-			dest.w = color.w;
+			if(!!flip)
+				color = read_imagef(inSrcTexture, kSampler_GF_TEXTURE_NAME(inSrcTexture), (float2)(((outXY.x - warpColor.x + 0.5) / outWidth), ((outXY.y - warpColor.y + 0.5) / outHeight)));
+			else
+				color = read_imagef(inSrcTexture, kSampler_GF_TEXTURE_NAME(inSrcTexture), (float2)(((outXY.x + 0.5) / outWidth), ((outXY.y + 0.5) / outHeight)));
 
-			WriteFloat4(dest, destImg, inXY.y * destPitch + inXY.x, !!in16f);
+			dest = color;
+			dest.x *= 1;
+			dest.y *= 1;
+			dest.z *= 1;
+			dest.w = 1;
+
+			
+			
+			
+
+			
+			
+			
+			
+
+			int index = (outXY.y) * destPitch + outXY.x ;
+			if(!flip)
+				index = (outXY.y + (int)warpColor.y) * destPitch + outXY.x + warpColor.x;
+			
+			if (index > outWidth * outHeight - 1)
+				index = (outXY.y) * destPitch + outXY.x;
+			WriteFloat4(dest, destImg, index, !!in16f);
 		}
-	#line 39 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+	#line 66 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Warp.cu"
+
+	
 
 
 
@@ -9224,8 +9252,7 @@ static __inline__ float saturate(float inX)
 
 
 
+#line 87 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Warp.cu"
 
-#line 59 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
-
-#line 61 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
-#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\FrameDiff.cl"
+#line 89 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Warp.cu"
+#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\Warp.cl"

@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27703.2018
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SDK_CrossDissolve (GPU)", "SDK_CrossDissolve.vcxproj", "{35A2FA5C-49F2-4558-B100-16F7B858872E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HornSchunck (GPU)", "HornSchunck.vcxproj", "{35A2FA5C-49F2-4558-B100-16F7B858872E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

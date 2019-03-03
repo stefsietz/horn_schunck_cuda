@@ -12,8 +12,8 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{35A2FA5C-49F2-4558-B100-16F7B858872E}</ProjectGuid>
-    <RootNamespace>SDK_CrossDissolve</RootNamespace>
-    <ProjectName>SDK_CrossDissolve (GPU)</ProjectName>
+    <RootNamespace>HornSchunck</RootNamespace>
+    <ProjectName>HornSchunck (GPU)</ProjectName>
     <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -51,9 +51,9 @@
     <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AllRules.ruleset</CodeAnalysisRuleSet>
     <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">SDK_CrossDissolve</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">HornSchunck</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.aex</TargetExt>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">SDK_CrossDissolve</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">HornSchunck</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.aex</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -65,7 +65,7 @@
       <MkTypLibCompatible>false</MkTypLibCompatible>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TargetEnvironment>X64</TargetEnvironment>
-      <TypeLibraryName>.\Debug/SDK_CrossDissolve.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Debug/HornSchunck.tlb</TypeLibraryName>
     </Midl>
     <ClCompile>
       <Optimization>Disabled</Optimization>
@@ -146,11 +146,11 @@ if not defined CUDA_PATH echo "CUDA_PATH is not defined! Please make sure the CU
     <ClInclude Include="..\..\..\..\Headers\PrSDKGPUImageProcessingSuite.h" />
     <ClInclude Include="..\..\..\..\Headers\PrSDKGPUFilter.h" />
     <ClInclude Include="..\..\..\..\Headers\PrSDKPixelFormat.h" />
-    <ClInclude Include="..\SDK_CrossDissolve.h" />
+    <ClInclude Include="..\HornSchunck.h" />
     <ClInclude Include="..\Utils\PrGPUFilterModule.h" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\SDK_CrossDissolve.r">
+    <CustomBuild Include="..\HornSchunck.r">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Converting PiPL for %(Filename)</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl /D "PRWIN_ENV" /I "$(AE_SDK_BASE_PATH)\Examples\Headers" /I "$(AE_SDK_BASE_PATH)\Examples\Resources" /EP "..\%(Filename).r" &gt; "$(IntDir)%(Filename).rr"
 "$(AE_SDK_BASE_PATH)\Examples\Resources\PiPLTool" "$(IntDir)%(Filename).rr" "..\%(Filename).rcp"
@@ -164,18 +164,18 @@ if not defined CUDA_PATH echo "CUDA_PATH is not defined! Please make sure the CU
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\SDK_CrossDissolve.rc" />
+    <ResourceCompile Include="..\HornSchunck.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\SDK_CrossDissolve_CPU.cpp">
+    <ClCompile Include="..\HornSchunck_CPU.cpp">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Debug/</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\SDK_CrossDissolve_GPU.cpp">
+    <ClCompile Include="..\HornSchunck_GPU.cpp">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Debug/</ObjectFileName>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\SDK_CrossDissolve.cu">
+    <CustomBuild Include="..\HornSchunck.cu">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rem Correct compilation is dependant on nvcc being installed correctly, from the CUDA SDK
 "$(CUDA_PATH)\bin\nvcc.exe" -D_DEBUG -arch=sm_30 -use_fast_math -c -ccbin "$(VCInstallDir)bin" -D_MBCS -Xcompiler /MDd,/EHsc,/W3,/nologo,/Zi -I"$(CUDA_PATH)\include" -I./ -I"$(ProjectDir)..\Utils" -I"$(BOOST_BASE_PATH)" -o "$(IntDir)%(Filename).obj" "$(ProjectDir)..\%(Filename).cu"</Command>
@@ -190,7 +190,7 @@ if not defined CUDA_PATH echo "CUDA_PATH is not defined! Please make sure the CU
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\SDK_CrossDissolve.cl">
+    <CustomBuild Include="..\HornSchunck.cl">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">del /Q "$(ProjectDir)%(Filename).i" 2&gt; nul
 "cl.exe" /nologo -D GF_DEVICE_TARGET_OPENCL=1 -I"$(BOOST_BASE_PATH)" -I"..\Utils" /TP /P "%(FullPath)"
@@ -274,6 +274,78 @@ if not defined CUDA_PATH echo "CUDA_PATH is not defined! Please make sure the CU
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(RelativeDir)\%(filename).cu;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\FrameDiff.cu">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rem Correct compilation is dependant on nvcc being installed correctly, from the CUDA SDK
+"$(CUDA_PATH)\bin\nvcc.exe" -D_DEBUG -arch=sm_30 -use_fast_math -c -ccbin "$(VCInstallDir)bin" -D_MBCS -Xcompiler /MDd,/EHsc,/W3,/nologo,/Zi -I"$(CUDA_PATH)\include" -I./ -I"$(ProjectDir)..\Utils" -I"$(BOOST_BASE_PATH)" -o "$(IntDir)%(Filename).obj" "$(ProjectDir)..\%(Filename).cu"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building %(Filename).cu</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\ClearMemory.cl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">del /Q "$(ProjectDir)%(Filename).i" 2&gt; nul
+"cl.exe" /nologo -D GF_DEVICE_TARGET_OPENCL=1 -I"$(BOOST_BASE_PATH)" -I"..\Utils" /TP /P "%(FullPath)"
+"C:\Users\Stefan\Anaconda3\envs\python27\pythonw.exe" "..\Utils\CreateCString.py" -i "$(ProjectDir)%(Filename).i" -o "$(IntDir)PreprocessedOpenCL\%(Filename).cl.h" --name k%(Filename)_OpenCLString</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Preprocessing OpenCL to Strings for %(Filename).cl</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)%(Filename).i;$(IntDir)\PreprocessedOpenCL\%(Filename).cl.h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(RelativeDir)\%(filename).cu;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\ClearMemory.cu">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rem Correct compilation is dependant on nvcc being installed correctly, from the CUDA SDK
+"$(CUDA_PATH)\bin\nvcc.exe" -D_DEBUG -arch=sm_30 -use_fast_math -c -ccbin "$(VCInstallDir)bin" -D_MBCS -Xcompiler /MDd,/EHsc,/W3,/nologo,/Zi -I"$(CUDA_PATH)\include" -I./ -I"$(ProjectDir)..\Utils" -I"$(BOOST_BASE_PATH)" -o "$(IntDir)%(Filename).obj" "$(ProjectDir)..\%(Filename).cu"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building %(Filename).cu</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\HSAlphaStep.cl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">del /Q "$(ProjectDir)%(Filename).i" 2&gt; nul
+"cl.exe" /nologo -D GF_DEVICE_TARGET_OPENCL=1 -I"$(BOOST_BASE_PATH)" -I"..\Utils" /TP /P "%(FullPath)"
+"C:\Users\Stefan\Anaconda3\envs\python27\pythonw.exe" "..\Utils\CreateCString.py" -i "$(ProjectDir)%(Filename).i" -o "$(IntDir)PreprocessedOpenCL\%(Filename).cl.h" --name k%(Filename)_OpenCLString</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Preprocessing OpenCL to Strings for %(Filename).cl</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)%(Filename).i;$(IntDir)\PreprocessedOpenCL\%(Filename).cl.h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(RelativeDir)\%(filename).cu;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\HSAlphaStep.cu">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rem Correct compilation is dependant on nvcc being installed correctly, from the CUDA SDK
+"$(CUDA_PATH)\bin\nvcc.exe" -D_DEBUG -arch=sm_30 -use_fast_math -c -ccbin "$(VCInstallDir)bin" -D_MBCS -Xcompiler /MDd,/EHsc,/W3,/nologo,/Zi -I"$(CUDA_PATH)\include" -I./ -I"$(ProjectDir)..\Utils" -I"$(BOOST_BASE_PATH)" -o "$(IntDir)%(Filename).obj" "$(ProjectDir)..\%(Filename).cu"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building %(Filename).cu</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\Add.cl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">del /Q "$(ProjectDir)%(Filename).i" 2&gt; nul
+"cl.exe" /nologo -D GF_DEVICE_TARGET_OPENCL=1 -I"$(BOOST_BASE_PATH)" -I"..\Utils" /TP /P "%(FullPath)"
+"C:\Users\Stefan\Anaconda3\envs\python27\pythonw.exe" "..\Utils\CreateCString.py" -i "$(ProjectDir)%(Filename).i" -o "$(IntDir)PreprocessedOpenCL\%(Filename).cl.h" --name k%(Filename)_OpenCLString</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Preprocessing OpenCL to Strings for %(Filename).cl</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)%(Filename).i;$(IntDir)\PreprocessedOpenCL\%(Filename).cl.h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(RelativeDir)\%(filename).cu;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\Add.cu">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rem Correct compilation is dependant on nvcc being installed correctly, from the CUDA SDK
+"$(CUDA_PATH)\bin\nvcc.exe" -D_DEBUG -arch=sm_30 -use_fast_math -c -ccbin "$(VCInstallDir)bin" -D_MBCS -Xcompiler /MDd,/EHsc,/W3,/nologo,/Zi -I"$(CUDA_PATH)\include" -I./ -I"$(ProjectDir)..\Utils" -I"$(BOOST_BASE_PATH)" -o "$(IntDir)%(Filename).obj" "$(ProjectDir)..\%(Filename).cu"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building %(Filename).cu</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\Warp.cl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">del /Q "$(ProjectDir)%(Filename).i" 2&gt; nul
+"cl.exe" /nologo -D GF_DEVICE_TARGET_OPENCL=1 -I"$(BOOST_BASE_PATH)" -I"..\Utils" /TP /P "%(FullPath)"
+"C:\Users\Stefan\Anaconda3\envs\python27\pythonw.exe" "..\Utils\CreateCString.py" -i "$(ProjectDir)%(Filename).i" -o "$(IntDir)PreprocessedOpenCL\%(Filename).cl.h" --name k%(Filename)_OpenCLString</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Preprocessing OpenCL to Strings for %(Filename).cl</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)%(Filename).i;$(IntDir)\PreprocessedOpenCL\%(Filename).cl.h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(RelativeDir)\%(filename).cu;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\Warp.cu">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rem Correct compilation is dependant on nvcc being installed correctly, from the CUDA SDK
 "$(CUDA_PATH)\bin\nvcc.exe" -D_DEBUG -arch=sm_30 -use_fast_math -c -ccbin "$(VCInstallDir)bin" -D_MBCS -Xcompiler /MDd,/EHsc,/W3,/nologo,/Zi -I"$(CUDA_PATH)\include" -I./ -I"$(ProjectDir)..\Utils" -I"$(BOOST_BASE_PATH)" -o "$(IntDir)%(Filename).obj" "$(ProjectDir)..\%(Filename).cu"</Command>

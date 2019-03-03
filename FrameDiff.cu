@@ -28,9 +28,9 @@
 			color = ReadFloat4(inImg, inXY.y * inPitch + inXY.x, !!in16f);
 			nextColor = ReadFloat4(nextImg, inXY.y * inPitch + inXY.x, !!in16f);
 
-			dest.x = nextColor.x - color.x;
-			dest.y = nextColor.y - color.y;
-			dest.z = nextColor.z - color.z;
+			dest.x = (nextColor.x - color.x);
+			dest.y = (nextColor.y - color.y);
+			dest.z = (nextColor.z - color.z);
 			dest.w = color.w;
 
 			WriteFloat4(dest, destImg, inXY.y * destPitch + inXY.x, !!in16f);

@@ -11,4 +11,4 @@
 ** written permission of Adobe.
 */
 
-#include "SDK_CrossDissolve.cu"
+#include "ClearMemory.cu"

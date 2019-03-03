@@ -1,4 +1,4 @@
-#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\FrameDiff.cl"
+#line 1 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\Add.cl"
 
 
 
@@ -12,14 +12,14 @@
 
 
 
-#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 1 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Add.cu"
 
 
 	
 
     
 
-#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 8 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Add.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 
@@ -8793,7 +8793,7 @@ static __inline__ float saturate(float inX)
 #line 533 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
 
 #line 535 "..\\Utils\\PrGPU/KernelSupport/KernelCore.h"
-#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 9 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Add.cu"
 	#line 1 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 
@@ -9184,28 +9184,30 @@ static __inline__ float saturate(float inX)
 #line 275 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
 
 #line 277 "..\\Utils\\PrGPU/KernelSupport/KernelMemory.h"
-#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+#line 10 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Add.cu"
 
 	
-		static __inline__ void kFrameDiff_Delegate( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    ); __kernel void kFrameDiff( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  ) {   kFrameDiff_Delegate( inImg, nextImg, destImg  , inPitch, destPitch, in16f, outWidth, outHeight  , KernelXYUnsigned()    ); } static __inline__ void kFrameDiff_Delegate( __global float4* inImg, __global float4* nextImg, __global float4* destImg  , int inPitch, int destPitch, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    )
-#line 22 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+		static __inline__ void kAdd_Delegate( __global float4* inImg1, __global float4* inImg2, __global float4* destImg  , int inPitch, int destPitch, float input2Mult, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    ); __kernel void kAdd( __global float4* inImg1, __global float4* inImg2, __global float4* destImg  , int inPitch, int destPitch, float input2Mult, int in16f, unsigned int outWidth, unsigned int outHeight  ) {   kAdd_Delegate( inImg1, inImg2, destImg  , inPitch, destPitch, input2Mult, in16f, outWidth, outHeight  , KernelXYUnsigned()    ); } static __inline__ void kAdd_Delegate( __global float4* inImg1, __global float4* inImg2, __global float4* destImg  , int inPitch, int destPitch, float input2Mult, int in16f, unsigned int outWidth, unsigned int outHeight  , uint2 inXY    )
+#line 23 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Add.cu"
 		{
-			float4  color, nextColor, dest;
+			float4  color1, color2, dest;
 
 
 			if (inXY.x >= outWidth || inXY.y >= outHeight) return;
 
-			color = ReadFloat4(inImg, inXY.y * inPitch + inXY.x, !!in16f);
-			nextColor = ReadFloat4(nextImg, inXY.y * inPitch + inXY.x, !!in16f);
+			color1 = ReadFloat4(inImg1, inXY.y * inPitch + inXY.x, !!in16f);
+			color2 = ReadFloat4(inImg2, inXY.y * inPitch + inXY.x, !!in16f);
 
-			dest.x = (nextColor.x - color.x);
-			dest.y = (nextColor.y - color.y);
-			dest.z = (nextColor.z - color.z);
-			dest.w = color.w;
+			dest.x = color1.x + color2.x * input2Mult;
+			dest.y = color1.y + color2.y * input2Mult;
+			dest.z = color1.z + color2.z * input2Mult;
+			dest.w = color1.w;
 
 			WriteFloat4(dest, destImg, inXY.y * destPitch + inXY.x, !!in16f);
 		}
-	#line 39 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
+	#line 40 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Add.cu"
+
+	
 
 
 
@@ -9224,8 +9226,7 @@ static __inline__ float saturate(float inX)
 
 
 
+#line 61 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Add.cu"
 
-#line 59 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
-
-#line 61 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\FrameDiff.cu"
-#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\FrameDiff.cl"
+#line 63 "c:\\users\\stefan\\dev\\sdk_crossdissolve\\Add.cu"
+#line 15 "C:\\Users\\Stefan\\Dev\\SDK_CrossDissolve\\Add.cl"
